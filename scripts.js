@@ -10,30 +10,19 @@ const Modal = {
     document.querySelector(".modal-overlay").classList.remove("active");
   },
 };
-
+const Storage = {
+  get() {
+    return JSON.parse(localStorage.getItem("dev.finances:transactions")) || [];
+  },
+  set(transactions) {
+    localStorage.setItem(
+      "dev.finances:transactions",
+      JSON.stringify(transactions)
+    );
+  },
+};
 const Transaction = {
-  all: [
-    {
-      description: "Luz",
-      amount: 50000,
-      date: "23/01/2021",
-    },
-    {
-      description: "website",
-      amount: 500000,
-      date: "23/01/2021",
-    },
-    {
-      description: "drugs",
-      amount: -20000,
-      date: "23/01/2021",
-    },
-    {
-      description: "APP",
-      amount: -20000,
-      date: "23/01/2021",
-    },
-  ],
+  all: Storage.get(),
   add(transaction) {
     Transaction.all.push(transaction);
 
@@ -75,18 +64,17 @@ const Transaction = {
     return Transaction.incomes() + Transaction.expenses();
   },
 };
-
-//Substituir os dados do HTML com os dados do JS
 const DOM = {
   transactionsContainer: document.querySelector("#data-table tbody"),
 
   addTransaction(transaction, index) {
     const tr = document.createElement("tr");
-    tr.innerHTML = DOM.innerHTMLTransaction(transaction);
+    tr.innerHTML = DOM.innerHTMLTransaction(transaction, index);
+    tr.dataset.index = index;
 
     DOM.transactionsContainer.appendChild(tr);
   },
-  innerHTMLTransaction(transaction) {
+  innerHTMLTransaction(transaction, index) {
     const CSSclass = transaction.amount > 0 ? "income" : "expense";
 
     const amount = Utils.formatCurrency(transaction.amount);
@@ -96,9 +84,8 @@ const DOM = {
             <td class="${CSSclass}">${amount}</td>
             <td class="date">${transaction.date}</td>
             <td>
-                <img src="./assets/minus.svg" alt="remover transação" />
+                <img onclick="Transaction.remove(${index})" src="./assets/minus.svg" alt="remover transação" />
             </td>
-        
         `;
     return html;
   },
@@ -117,7 +104,6 @@ const DOM = {
     DOM.transactionsContainer.innerHTML = "";
   },
 };
-
 const Utils = {
   formatAmount(value) {
     value = Number(value) * 100;
@@ -187,19 +173,14 @@ const Form = {
 
   submit(event) {
     event.preventDefault();
-    // verificar se as informações foram preenchidas
+
     try {
-      Form.validateFields();
-      // formatar os dados para salvar
-      const transaction = Form.formatValues();
-      // salvar
-      Transaction.add(transaction);
-      // apagar os dados do formulario
-      Form.clearFields();
-      // modal feche
-      Modal.close()
-      App.reload()
-      //atualizar a aplicação
+      Form.validateFields(); // verificar se as informações foram preenchidas
+      const transaction = Form.formatValues(); // formatar os dados para salvar
+      Transaction.add(transaction); // salvar
+      Form.clearFields(); // apagar os dados do formulario
+
+      Modal.close(); // modal feche
     } catch (error) {
       alert(error.message);
     }
@@ -208,11 +189,13 @@ const Form = {
 
 const App = {
   init() {
-    Transaction.all.forEach((transaction) => {
-      DOM.addTransaction(transaction);
+    Transaction.all.forEach((transaction, index) => {
+      DOM.addTransaction(transaction, index);
     });
 
     DOM.updateBalance();
+
+    Storage.set(Transaction.all);
   },
   reload() {
     DOM.clearTransactions();
